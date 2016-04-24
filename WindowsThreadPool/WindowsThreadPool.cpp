@@ -7,12 +7,13 @@
 #include "../jturbo/TaskManager.h"
 #include "../jturbo/StopWatch.h"
 
+#ifndef _DEBUG
+#include <tbb/tbbmalloc_proxy.h>
+#endif
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
-
-// 유일한 응용 프로그램 개체입니다.
 
 CWinApp theApp;
 
