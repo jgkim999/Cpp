@@ -39,8 +39,8 @@ int main()
 			if (std_out == INVALID_HANDLE_VALUE)
 				return 1;
 			std::wstring test(L"유니코드, unicode, 1234, ひらがな or 平仮名.");
-			WriteConsoleW(std_out, test.c_str(), test.length(), NULL, NULL);
-			WriteConsoleW(std_out, test.c_str(), test.length(), NULL, NULL);
+			WriteConsoleW(std_out, test.c_str(), static_cast<DWORD>(test.length()), NULL, NULL);
+			WriteConsoleW(std_out, test.c_str(), static_cast<DWORD>(test.length()), NULL, NULL);
 
         }
     }

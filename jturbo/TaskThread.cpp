@@ -1,9 +1,6 @@
-﻿/******************************************************************************
-* [2016] FLINT Incorporated.
-* All Rights Reserved.
-*/
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include "TaskThread.h"
+#include "TaskQueue.h"
 #include <iostream>
 
 #ifdef _DEBUG
@@ -12,9 +9,11 @@
 
 namespace jturbo {
 
-TaskThread::TaskThread()
+TaskThread::TaskThread(TaskQueue* pTaskQueue)
 	: m_Run(false)
 	, m_Busy(false)
+	, m_Stop(false)
+	, m_pTaskQueue(pTaskQueue)
 {
 	m_hWorkEvent[0] = ::CreateEvent(NULL, TRUE, FALSE, NULL);
 	m_hWorkEvent[1] = ::CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -24,6 +23,7 @@ TaskThread::TaskThread()
 
 TaskThread::~TaskThread()
 {
+	Stop();
 	::CloseHandle(m_hWorkEvent[0]);
 	::CloseHandle(m_hWorkEvent[1]);
 }
@@ -44,9 +44,15 @@ bool TaskThread::IsBusy() const
 	return m_Busy;
 }
 
-void TaskThread::SetTask(std::shared_ptr<Task> pTask)
+void TaskThread::Stop()
 {
-	m_pTask = pTask;
+	SignalShutDownEvent();
+	if (Joinable())
+		Join();
+	while (!m_Stop)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
 }
 
 bool TaskThread::Joinable() const
@@ -59,14 +65,10 @@ void TaskThread::Join()
 	m_Thread.join();
 }
 
-void TaskThread::SetBusy()
-{
-	m_Busy = true;
-}
-
 void TaskThread::ThreadFunc()
 {
 	m_Run = true;
+	m_Stop = false;
 	while (m_Run)
 	{
 		DWORD dwWaitResult = ::WaitForMultipleObjects(2, m_hWorkEvent, FALSE, INFINITE);
@@ -81,16 +83,15 @@ void TaskThread::ThreadFunc()
 			break;
 		}
 	}
-	std::cout << "TaskThread stopped." << m_ThreadId << std::endl;
+	m_Stop = true;
 }
 
 void TaskThread::RunTask()
 {
-	if (m_pTask)
-	{
-		m_pTask->Run();
-		m_pTask.reset();
-	}
+	m_Busy = true;
+	std::shared_ptr<Task> pTask;
+	if (m_pTaskQueue->Pop(pTask))
+		pTask->Run();
 	m_Busy = false;
 }
 

@@ -1,8 +1,4 @@
-﻿/******************************************************************************
-* [2016] FLINT Incorporated.
-* All Rights Reserved.
-*/
-#pragma once
+﻿#pragma once
 
 #include <chrono>
 

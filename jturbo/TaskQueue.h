@@ -1,8 +1,4 @@
-﻿/******************************************************************************
-* [2016] FLINT Incorporated.
-* All Rights Reserved.
-*/
-#pragma once
+﻿#pragma once
 
 #include <tbb/concurrent_queue.h>
 #include <memory>

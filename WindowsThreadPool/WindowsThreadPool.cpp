@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "WindowsThreadPool.h"
+#include "../jturbo/Task.h"
 #include "../jturbo/TaskManager.h"
 #include "../jturbo/StopWatch.h"
 
@@ -16,6 +17,13 @@
 CWinApp theApp;
 
 using namespace std;
+
+void myPurecallHandler(void)
+{
+	printf("In _purecall_handler.");
+	int* a = 0;
+	*a = 1; // 크래시 유발. 오류 덤프 시스템으로 우회시키기.
+}
 
 void Test();
 
@@ -37,6 +45,7 @@ int main()
         else
         {
             // TODO: 응용 프로그램의 동작은 여기에서 코딩합니다.
+			_set_purecall_handler(myPurecallHandler);
 			Test();
         }
     }
@@ -46,7 +55,7 @@ int main()
         wprintf(L"심각한 오류: GetModuleHandle 실패\n");
         nRetCode = 1;
     }
-
+	getchar();
     return nRetCode;
 }
 
@@ -63,7 +72,7 @@ public:
 	virtual void Run() override
 	{
 // 		std::cout << m_TaskNum << "LongTask run." << std::endl;
- 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
+// 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
 	}
 private:
 	int m_TaskNum;
@@ -80,7 +89,7 @@ public:
 	virtual void Run() override
 	{
 // 		std::cout << m_TaskNum << "ShortTask run." << std::endl;
- 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+// 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 private:
 	int m_TaskNum;
@@ -100,10 +109,10 @@ void Test()
 			pTask = std::make_shared<ShortTask>(i);
 		pTaskManager->Push(pTask);
 	}
-	std::cout << "Elsp " << stopWatch.GetMilliseconds() << "msec" << std::endl;
 
 	while (pTaskManager->RemainSize() != 0)
 	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+	std::cout << "Elsp " << stopWatch.GetMilliseconds() << "msec" << std::endl;
 }
