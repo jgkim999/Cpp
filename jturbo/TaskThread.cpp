@@ -1,6 +1,7 @@
 ﻿#include "stdafx.h"
 #include "TaskThread.h"
 #include "TaskQueue.h"
+#include "TaskManager.h"
 #include <iostream>
 
 #ifdef _DEBUG
@@ -9,73 +10,77 @@
 
 namespace jturbo {
 
-TaskThread::TaskThread(TaskQueue* pTaskQueue)
-	: m_Run(false)
-	, m_Busy(false)
-	, m_Stop(false)
-	, m_pTaskQueue(pTaskQueue)
+TaskThread::TaskThread(TaskManager* pTaskManager, int threadNum)
+	: run_(false)
+	, stop_(false)
+	, taskManager_(pTaskManager)
+	, threadNum_(threadNum)
 {
-	m_hWorkEvent[0] = ::CreateEvent(NULL, TRUE, FALSE, NULL);
-	m_hWorkEvent[1] = ::CreateEvent(NULL, TRUE, FALSE, NULL);
-	m_Thread = std::thread(&TaskThread::ThreadFunc, this);
-	m_ThreadId = m_Thread.get_id();
+	workEvent_[0] = ::CreateEvent(NULL, TRUE, FALSE, NULL);
+	workEvent_[1] = ::CreateEvent(NULL, TRUE, FALSE, NULL);
+	thread_ = std::thread(&TaskThread::threadFunc, this);
+	threadId_ = thread_.get_id();
 }
 
 TaskThread::~TaskThread()
 {
-	Stop();
-	::CloseHandle(m_hWorkEvent[0]);
-	::CloseHandle(m_hWorkEvent[1]);
+	stop();
+	::CloseHandle(workEvent_[0]);
+	::CloseHandle(workEvent_[1]);
 }
 
-void TaskThread::SignalWorkEvent()
+void TaskThread::setTask(std::shared_ptr<Task> task)
 {
-	::SetEvent(m_hWorkEvent[0]);
+	if (task)
+	{
+		task_ = task;
+		signalWorkEvent();
+	}
 }
 
-void TaskThread::SignalShutDownEvent()
+void TaskThread::signalWorkEvent()
 {
-	m_Run = false;
-	::SetEvent(m_hWorkEvent[1]);
+	::SetEvent(workEvent_[0]);
 }
 
-bool TaskThread::IsBusy() const
+void TaskThread::signalShutDownEvent()
 {
-	return m_Busy;
+	run_ = false;
+	::SetEvent(workEvent_[1]);
 }
 
-void TaskThread::Stop()
+void TaskThread::stop()
 {
-	SignalShutDownEvent();
-	if (Joinable())
-		Join();
-	while (!m_Stop)
+	signalShutDownEvent();
+	if (joinable())
+		join();
+	while (!stop_)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 }
 
-bool TaskThread::Joinable() const
+bool TaskThread::joinable() const
 {
-	return m_Thread.joinable();
+	return thread_.joinable();
 }
 
-void TaskThread::Join()
+void TaskThread::join()
 {
-	m_Thread.join();
+	thread_.join();
 }
 
-void TaskThread::ThreadFunc()
+void TaskThread::threadFunc()
 {
-	m_Run = true;
-	m_Stop = false;
-	while (m_Run)
+	run_ = true;
+	stop_ = false;
+	while (run_)
 	{
-		DWORD dwWaitResult = ::WaitForMultipleObjects(2, m_hWorkEvent, FALSE, INFINITE);
+		DWORD dwWaitResult = ::WaitForMultipleObjects(2, workEvent_, FALSE, INFINITE);
 		switch (dwWaitResult)
 		{
 		case WAIT_OBJECT_0:
-			RunTask();
+			runTask();
 			break;
 		case WAIT_OBJECT_0 + 1:
 			break;
@@ -83,16 +88,18 @@ void TaskThread::ThreadFunc()
 			break;
 		}
 	}
-	m_Stop = true;
+	stop_ = true;
 }
 
-void TaskThread::RunTask()
+void TaskThread::runTask()
 {
-	m_Busy = true;
-	std::shared_ptr<Task> pTask;
-	if (m_pTaskQueue->Pop(pTask))
-		pTask->Run();
-	m_Busy = false;
+	if (task_)
+	{
+		task_->run();
+		task_.reset();
+	}
+	::ResetEvent(workEvent_[0]);
+	taskManager_->addFreeThread(threadNum_);
 }
 
 } // namespace jturbo

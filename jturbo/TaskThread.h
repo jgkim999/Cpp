@@ -5,32 +5,35 @@
 
 namespace jturbo {
 
-class TaskQueue;
+class Task;
+class TaskManager;
 
 class TaskThread
 {
 public:
-	TaskThread(TaskQueue* pTaskQueue);
+	TaskThread(TaskManager* pTaskManager, int threadNum);
 	~TaskThread();
 
-	void SignalWorkEvent();
-	bool IsBusy() const;
-	void Stop();
-	std::thread::id GetId() const { return m_ThreadId; }
+	void stop();
+	void setTask(std::shared_ptr<Task> task);
+	std::thread::id id() const { return threadId_; }
+	int threadNum() const { return threadNum_; }
 private:
-	void ThreadFunc();
-	void RunTask();
-	bool Joinable() const;
-	void Join();
-	void SignalShutDownEvent();
+	void signalWorkEvent();
+	void threadFunc();
+	void runTask();
+	bool joinable() const;
+	void join();
+	void signalShutDownEvent();
 private:
-	HANDLE  m_hWorkEvent[2]; // m_hWorkEvent[0] Work Event. m_hWorkEvent[1] ShutDown event
-	std::thread m_Thread;
-	std::atomic<bool> m_Run;
-	std::atomic<bool> m_Busy;
-	std::atomic<bool> m_Stop;
-	std::thread::id m_ThreadId;
-	TaskQueue* m_pTaskQueue;
+	HANDLE  workEvent_[2]; // m_hWorkEvent[0] Work Event. m_hWorkEvent[1] ShutDown event
+	std::thread thread_;
+	std::atomic<bool> run_;
+	std::atomic<bool> stop_;
+	std::thread::id threadId_;
+	TaskManager* taskManager_;
+	int threadNum_;
+	std::shared_ptr<Task> task_;
 };
 
 } // namespace jturbo

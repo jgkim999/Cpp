@@ -13,28 +13,28 @@ public:
 	TaskQueue() {}
 	~TaskQueue() {}
 
-	void Push(std::shared_ptr<Task> pTask)
+	void push(std::shared_ptr<Task> pTask)
 	{
 		if (pTask)
-			m_Queue.push(pTask);
+			queue_.push(pTask);
 	}
 
-	bool Pop(std::shared_ptr<Task>& pTask)
+	bool pop(std::shared_ptr<Task>& pTask)
 	{
-		return m_Queue.try_pop(pTask);
+		return queue_.try_pop(pTask);
 	}
 
-	bool Empty() const
+	bool empty() const
 	{
-		return m_Queue.empty();
+		return queue_.empty();
 	}
 
-	size_t Size() const
+	size_t size() const
 	{
-		return m_Queue.unsafe_size();
+		return queue_.unsafe_size();
 	}
 private:
-	tbb::concurrent_queue<std::shared_ptr<Task>> m_Queue;
+	tbb::concurrent_queue<std::shared_ptr<Task>> queue_;
 };
 
 } // namespace jturbo

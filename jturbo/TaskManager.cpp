@@ -12,77 +12,104 @@
 namespace jturbo {
 
 TaskManager::TaskManager(unsigned int threadNum)
-	: m_Run(false)
-	, m_Stop(false)
-	, m_pQueue(new TaskQueue)
+	: run_(false)
+	, stop_(false)
+	, taskQueue_(new TaskQueue)
 {
-	m_Thread = std::thread(&TaskManager::ThreadProc, this);
+	thread_ = std::thread(&TaskManager::threadProc, this);
 	for (unsigned int i = 0; i < threadNum; ++i)
 	{
-		std::shared_ptr<TaskThread> pTaskThread(std::make_shared<TaskThread>(m_pQueue));
-		m_TaskThread.emplace_back(pTaskThread);
+		TaskThread* pTaskThread = new TaskThread(this, i);
+		taskThread_.emplace_back(pTaskThread);
+		waitThread_.push(i);
 	}
 }
 
 TaskManager::~TaskManager()
 {
-	Stop();
-	for (auto& iter : m_TaskThread)
-		iter->Stop();
-	delete m_pQueue;
+	stop();
+	for (auto& iter : taskThread_)
+	{
+		iter->stop();
+		delete(iter);
+	}
+	delete taskQueue_;
 }
 
-void TaskManager::Stop()
+void TaskManager::stop()
 {
-	m_Run = false;
-	if (m_Thread.joinable())
-		m_Thread.join();
-	while (!m_Stop)
+	run_ = false;
+	if (thread_.joinable())
+		thread_.join();
+	while (!stop_)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 }
 
-void TaskManager::Push(std::shared_ptr<Task> pTask)
+void TaskManager::addFreeThread(int threadNum)
 {
-	m_pQueue->Push(pTask);
+	waitThread_.push(threadNum);
 }
 
-void TaskManager::ThreadProc()
+void TaskManager::push(std::shared_ptr<Task> pTask)
 {
-	m_Stop = false;
-	m_Run = true;
-	while (m_Run)
+	taskQueue_->push(pTask);
+}
+
+void TaskManager::threadProc()
+{
+	stop_ = false;
+	run_ = true;
+	while (run_)
 	{
-		if (m_pQueue->Empty())
+		if (taskQueue_->empty())
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			continue;
 		}
 
-		std::shared_ptr<TaskThread> pTaskThead = GetFreeThread();
+		TaskThread* pTaskThead = freeThread();
 		if (pTaskThead)
-			pTaskThead->SignalWorkEvent();
+		{
+			std::shared_ptr<Task> pTask;
+			if (taskQueue_->pop(pTask))
+			{
+				pTaskThead->setTask(pTask);
+				//pTaskThead->SignalWorkEvent();
+			}
+			else
+			{
+				waitThread_.push(pTaskThead->threadNum());
+			}
+		}
 		else
+		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(10));
+		}
 	}
-	m_Stop = true;
+	stop_ = true;
 	std::cout << "TaskManager stopped." << std::endl;
 }
 
-std::shared_ptr<TaskThread> TaskManager::GetFreeThread() const
+TaskThread* TaskManager::freeThread()
 {
-	for (auto& iter : m_TaskThread)
+	if (waitThread_.empty())
+		return nullptr;
+	int threadNum = 0;
+	if (waitThread_.try_pop(threadNum))
 	{
-		if (!iter->IsBusy())
-			return iter;
+		return taskThread_[threadNum];
 	}
-	return nullptr;
+	else
+	{
+		return nullptr;
+	}
 }
 
-size_t TaskManager::RemainSize() const
+size_t TaskManager::remainSize() const
 {
-	return m_pQueue->Size();
+	return taskQueue_->size();
 }
 
 } // namespace jturbo

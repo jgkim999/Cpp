@@ -70,7 +70,7 @@ public:
 	{
 	}
 	virtual ~LongTask() {}
-	virtual void Run() override
+	virtual void run() override
 	{
 // 		std::cout << m_TaskNum << "LongTask run." << std::endl;
 // 		std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -87,7 +87,7 @@ public:
 	{
 	}
 	virtual ~ShortTask() {}
-	virtual void Run() override
+	virtual void run() override
 	{
 // 		std::cout << m_TaskNum << "ShortTask run." << std::endl;
 // 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
@@ -98,7 +98,7 @@ private:
 
 void Test()
 {
-	std::unique_ptr<TaskManager> pTaskManager(std::make_unique<TaskManager>(8));
+	std::unique_ptr<TaskManager> pTaskManager(std::make_unique<TaskManager>(200));
 	StopWatch<> stopWatch;
 	for (int i = 0; i < 10000000; ++i)
 	{
@@ -108,10 +108,10 @@ void Test()
 			pTask = std::make_shared<LongTask>(i);
 		else
 			pTask = std::make_shared<ShortTask>(i);
-		pTaskManager->Push(pTask);
+		pTaskManager->push(pTask);
 	}
 
-	while (pTaskManager->RemainSize() != 0)
+	while (pTaskManager->remainSize() != 0)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
