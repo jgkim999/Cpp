@@ -100,7 +100,7 @@ void Test()
 {
 	std::unique_ptr<TaskManager> pTaskManager(std::make_unique<TaskManager>(200));
 	StopWatch<> stopWatch;
-	for (int i = 0; i < 10000000; ++i)
+	for (int i = 0; i < 100000; ++i)
 	{
 		std::shared_ptr<Task> pTask;
 		int j = i % 2;
