@@ -281,3 +281,4 @@ $RECYCLE.BIN/
 *.lnk
 CppExample.VC.db
 CppExample.VC.VC.opendb
+/CppExample.VC.opendb
