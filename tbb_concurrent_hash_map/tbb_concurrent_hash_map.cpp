@@ -6,125 +6,116 @@
 #include <thread>
 #include <vector>
 #include <atomic>
+#include <random>
 #include "../third_party/tbb44_20160128oss/include/tbb/concurrent_hash_map.h"
 
-using Chmap = tbb::concurrent_hash_map<int, int>;
-using ChmapValue = Chmap::value_type;
-using ChmapAccessor = Chmap::accessor;
-using ChmapConstAccessor = Chmap::const_accessor;
-
-Chmap test;
-
-void test1()
+class InsertEraseFind
 {
+private:
+    using Data = tbb::concurrent_hash_map<int, int>;
+    using DataValue = Data::value_type;
+    using DataAccessor = Data::accessor;
+    using DataConstAccessor = Data::const_accessor;
+public:
+    InsertEraseFind()
     {
-        ChmapAccessor acc;
-        if (test.insert(acc, ChmapValue(1, 1)))
-            std::cout << "insert success 1" << std::endl;
-        else
-            std::cout << "insert fail 1" << std::endl;
+        std::random_device rd;
+        gen_ = std::mt19937(rd());
+        dis_ = std::uniform_int_distribution<>(1, 100);
     }
+
+    ~InsertEraseFind()
     {
-        ChmapAccessor acc;
-        while (!test.insert(acc, ChmapValue(1, 2)))
+    }
+
+    void Run()
+    {
+        for (int i = 0; i < 30; ++i)
         {
-            std::cout << "insert fail 1" << std::endl;
-            test.erase(acc);
+            auto mod = i % 3;
+            if (mod == 0)
+                threads_.push_back(std::thread(&InsertEraseFind::Insert, this));
+            else if (mod == 1)
+                threads_.push_back(std::thread(&InsertEraseFind::Find, this));
+            else
+                threads_.push_back(std::thread(&InsertEraseFind::Erase, this));
         }
-        std::cout << "insert success 1" << std::endl;
-    }
-    std::cout << "elements [";
-    for (auto iter : test)
-        std::cout << "(" << iter.first << "," << iter.second << ")";
-    std::cout << "]" << std::endl;
-}
+        for (auto& elmt : threads_)
+            elmt.join();
+        std::cout << "insert success:" << insert_success_count_ << " fail:" << insert_fail_count_ << std::endl;
+        std::cout << "find success:" << find_success_count_ << " fail:" << find_fail_count_ << std::endl;
+        std::cout << "erase success:" << erase_success_count_ << " fail:" << erase_fail_count_ << std::endl;
 
-void test2()
-{
-    std::thread t1([]() {
-        for (int i = 0; i < 1000; ++i)
+        std::cout << "[";
+        for (auto& data : data_)
+            std::cout << "{" << data.first << "," << data.second << "}";
+        std::cout << "]" << std::endl;
+    }
+
+    void Erase()
+    {
+        for (int i = 0; i < loop_count_; ++i)
         {
-            ChmapConstAccessor acc;
-            while (!test.insert(acc, ChmapValue(1, 2)))
+            if (data_.erase(RandomInt()))
+                ++erase_success_count_;
+            else
+                ++erase_fail_count_;
+        }
+    }
+
+    void Find()
+    {
+        for (int i = 0; i < loop_count_; ++i)
+        {
+            DataConstAccessor acc;
+            if (data_.find(acc, RandomInt()))
+                ++find_success_count_;
+            else
+                ++find_fail_count_;
+        }
+    }
+
+    void Insert()
+    {
+        for (int i = 0; i < loop_count_; ++i)
+        {
+            DataValue value(RandomInt(), RandomInt());
+            DataAccessor acc;
+            while (!data_.insert(acc, value))
             {
-                std::cout << "t1 insert fail 1" << std::endl;
-                test.erase(acc);
+                ++insert_fail_count_;
+                data_.erase(acc);
             }
-            std::cout << "t1 insert success 1" << std::endl;
-        }
-    });
-    std::thread t2([]() {
-        for (int i = 0; i < 1000; ++i)
-        {
-            ChmapConstAccessor acc;
-            while (!test.insert(acc, ChmapValue(1, 2)))
-            {
-                std::cout << "t2 insert fail 1" << std::endl;
-                test.erase(acc);
-            }
-            std::cout << "t2 insert success 1" << std::endl;
-        }
-    });
-    t1.join();
-    t2.join();
-}
-
-void test3()
-{
-    std::atomic<int> success_count = 0;
-    std::atomic<int> fail_count = 0;
-    std::atomic<int> find_success_count = 0;
-    std::atomic<int> find_fail_count = 0;
-    std::vector<std::thread> threads;
-    for (int i = 0; i < 100; ++i)
-    {
-        if (i % 2)
-        {
-            threads.push_back(
-                std::thread([&]() {
-                for (int i = 0; i < 100; ++i)
-                {
-                    ChmapConstAccessor acc;
-                    while (!test.insert(acc, ChmapValue(1, 2)))
-                    {
-                        ++fail_count;
-                        test.erase(acc);
-                    }
-                    ++success_count;
-                }
-            }));
-        }
-        else
-        {
-            threads.push_back(
-                std::thread([&]() {
-                for (int i = 0; i < 100; ++i)
-                {
-                    ChmapConstAccessor acc;
-                    if (test.find(acc, 1))
-                    {
-                        ++find_success_count;
-                        test.erase(acc);
-                    }
-                    else
-                    {
-                        ++find_fail_count;
-                    }
-                }
-            }));
+            ++insert_success_count_;
         }
     }
-    for (auto& elmt : threads)
-        elmt.join();
-    std::cout << "success:" << success_count << " fail:" << fail_count << std::endl;
-    std::cout << "find success:" << find_success_count << " find fail:" << find_fail_count << std::endl;
-}
+private:
+    int RandomInt()
+    {
+        return dis_(gen_);
+    }
+private:
+    Data data_;
+    std::mt19937 gen_;
+    std::uniform_int_distribution<> dis_;
+
+    std::atomic<int> insert_success_count_ = 0;
+    std::atomic<int> insert_fail_count_ = 0;
+
+    std::atomic<int> find_success_count_ = 0;
+    std::atomic<int> find_fail_count_ = 0;
+
+    std::atomic<int> erase_success_count_ = 0;
+    std::atomic<int> erase_fail_count_ = 0;
+
+    std::vector<std::thread> threads_;
+
+    int loop_count_ = 100;
+};
 
 int main()
 {
-    test1();
-    test2();
-    test3();
+    InsertEraseFind test;
+    test.Run();
     return 0;
 }
-
