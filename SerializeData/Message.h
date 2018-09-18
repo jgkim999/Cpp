@@ -8,8 +8,8 @@ namespace serialize
 {
 	class Message
 	{
-		//const size_t kDefaultBufferSize = 1024;
-		const size_t kDefaultBufferSize = 16;
+		const size_t kAlignment = 32;
+		const size_t kDefaultBufferSize = 1024;
 	public:
 		Message();
 		Message(const Message& message);
