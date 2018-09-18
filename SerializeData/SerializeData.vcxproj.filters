@@ -7,9 +7,13 @@
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Message.h" />
+    <ClInclude Include="SerialStruct.h" />
+    <ClInclude Include="MessageHelper.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp" />
     <ClCompile Include="SerializeData.cpp" />
+    <ClCompile Include="Message.cpp" />
+    <ClCompile Include="SerialStruct.cpp" />
   </ItemGroup>
 </Project>
