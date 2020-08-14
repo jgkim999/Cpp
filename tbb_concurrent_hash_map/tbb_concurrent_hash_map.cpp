@@ -7,7 +7,7 @@
 #include <vector>
 #include <atomic>
 #include <random>
-#include "../third_party/tbb44_20160128oss/include/tbb/concurrent_hash_map.h"
+#include <tbb/concurrent_hash_map.h>
 
 class InsertEraseFind
 {
