@@ -17,6 +17,12 @@ git submodule init
 ```powershell
 git submodule update
 ```
+또는
+```powershell
+git submodule update --init --recursive
+git submodule foreach --recursive git fetch
+git submodule foreach git merge origin master
+```
 
 ## Vcpkg 폴더로 이동
 
